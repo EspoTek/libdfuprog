@@ -1,31 +1,26 @@
 #! /bin/sh
 
-ECHO
-ECHO CLEANING...
-ECHO
+LIBUSB_CFLAGS="-I$(brew --prefix libusb)/include/libusb-1.0"
+CFLAGS="-c -fPIC -O2 -Wall -g -DHAVE_CONFIG_H -I. $LIBUSB_CFLAGS"
+ARCHES="-arch x86_64 -arch arm64"
+OBJECTS="main.o arguments.o atmel.o commands.o dfu.o intel_hex.o stm32.o util.o"
 
-make clean
-
-ECHO
-ECHO CONFIGURING...
-ECHO
-
-./configure CC='clang -c -fPIC'
-
-ECHO
-ECHO MAKING OBJECTS...
-ECHO
-
-make
-
-ECHO
-ECHO BUILDING SHARED LIBRARY...
-ECHO
+cat > src/config.h << 'EOF'
+#define HAVE_LIBUSB_1_0 1
+#define PACKAGE "dfu-programmer"
+#define PACKAGE_STRING "dfu-programmer 0.7.2"
+#define PACKAGE_URL "https://github.com/dfu-programmer/dfu-programmer"
+EOF
 
 cd src
+for f in $OBJECTS; do
+    echo "CC ${f%.o}.c"
+    clang $CFLAGS $ARCHES "${f%.o}.c"
+done
 
-clang -lusb-1.0 -g -Wall -O2 -arch x86_64 -arch arm64 -dynamiclib -undefined dynamic_lookup -o libdfuprog-0.9.dylib main.o arguments.o atmel.o commands.o dfu.o intel_hex.o stm32.o util.o
+echo "LINK libdfuprog-0.9.dylib"
+clang $ARCHES -dynamiclib -undefined dynamic_lookup -o libdfuprog-0.9.dylib $OBJECTS
 
-ECHO
-ECHO Build complete!!
-ECHO
+echo "Done."
+file libdfuprog-0.9.dylib
+otool -L libdfuprog-0.9.dylib
